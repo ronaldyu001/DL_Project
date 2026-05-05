@@ -1,0 +1,32 @@
+column,dtype,missing_count,missing_percent,unique_count,unique_percent,most_common_percent,outlier_count,outlier_percent,cleaning_notes
+Time,float64,0,0.0,124592,43.75,0.01,0,0.0,ok
+V1,float64,0,0.0,275663,96.79,0.03,7062,2.48,possible outliers
+V2,float64,0,0.0,275663,96.79,0.03,13526,4.75,possible outliers
+V3,float64,0,0.0,275663,96.79,0.03,3363,1.18,possible outliers
+V4,float64,0,0.0,275663,96.79,0.03,11148,3.91,possible outliers
+V5,float64,0,0.0,275663,96.79,0.03,12295,4.32,possible outliers
+V6,float64,0,0.0,275663,96.79,0.03,22965,8.06,possible outliers
+V7,float64,0,0.0,275663,96.79,0.03,8948,3.14,possible outliers
+V8,float64,0,0.0,275663,96.79,0.03,24134,8.47,possible outliers
+V9,float64,0,0.0,275663,96.79,0.03,8283,2.91,possible outliers
+V10,float64,0,0.0,275663,96.79,0.03,9496,3.33,possible outliers
+V11,float64,0,0.0,275663,96.79,0.03,780,0.27,possible outliers
+V12,float64,0,0.0,275663,96.79,0.03,15348,5.39,possible outliers
+V13,float64,0,0.0,275663,96.79,0.03,3368,1.18,possible outliers
+V14,float64,0,0.0,275663,96.79,0.03,14149,4.97,possible outliers
+V15,float64,0,0.0,275663,96.79,0.03,2894,1.02,possible outliers
+V16,float64,0,0.0,275663,96.79,0.03,8184,2.87,possible outliers
+V17,float64,0,0.0,275663,96.79,0.03,7420,2.61,possible outliers
+V18,float64,0,0.0,275663,96.79,0.03,7533,2.64,possible outliers
+V19,float64,0,0.0,275663,96.79,0.03,10205,3.58,possible outliers
+V20,float64,0,0.0,275663,96.79,0.03,27770,9.75,possible outliers
+V21,float64,0,0.0,275663,96.79,0.03,14497,5.09,possible outliers
+V22,float64,0,0.0,275663,96.79,0.03,1317,0.46,possible outliers
+V23,float64,0,0.0,275663,96.79,0.03,18541,6.51,possible outliers
+V24,float64,0,0.0,275663,96.79,0.03,4774,1.68,possible outliers
+V25,float64,0,0.0,275663,96.79,0.03,5367,1.88,possible outliers
+V26,float64,0,0.0,275663,96.79,0.03,5596,1.96,possible outliers
+V27,float64,0,0.0,275663,96.79,0.03,39163,13.75,possible outliers
+V28,float64,0,0.0,275663,96.79,0.03,30342,10.65,possible outliers
+Amount,float64,0,0.0,32767,11.5,4.81,31904,11.2,possible outliers
+Class,int64,0,0.0,2,0.0,99.83,0,0.0,highly imbalanced
