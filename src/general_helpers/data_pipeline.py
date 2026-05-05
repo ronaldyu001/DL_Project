@@ -2,6 +2,7 @@ from typing import Optional
 from pathlib import Path
 import pandas as pd
 from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import MinMaxScaler, StandardScaler
 
 
 
@@ -33,20 +34,22 @@ def load_csv_dataset(csv_name: str, base_path: Optional[str] = None) -> pd.DataF
 #       Split Dataset
 # -----------------------------------------------
 
-def split_dataframe_dataset(
+def create_fnn_splits(
     dataset: pd.DataFrame,
     eval: bool = True,
     split_ratios: Optional[tuple] = None,
-    random_seed: Optional[int] = None
+    random_seed: Optional[int] = None,
+    label_column: str = "Class"
 ) -> tuple:
     """
-    Splits a pandas dataframe into train, eval, and test dataframes.
+    Creates supervised FNN train, eval, and test dataframe splits.
 
     - Takes a pandas dataframe as input.
     - Eval split defaults to True. If False, only train and test are returned.
     - Split ratios default to (0.7, 0.15, 0.15) when eval=True.
     - Split ratios default to (0.8, 0.2) when eval=False.
     - Random seed is optional. If None, no fixed random seed is used.
+    - Stratifies by label_column when available.
     - Returns a tuple containing the dataframe splits.
     """
 
@@ -54,22 +57,29 @@ def split_dataframe_dataset(
     if split_ratios is None:
         split_ratios = (0.7, 0.15, 0.15) if eval else (0.8, 0.2)
 
+    stratify_labels = dataset[label_column] if label_column in dataset.columns else None
+
     if eval:
         # Split train from eval/test.
         train_dataset, eval_test_dataset = train_test_split(
             dataset,
             train_size=split_ratios[0],
             random_state=random_seed,
-            shuffle=True
+            shuffle=True,
+            stratify=stratify_labels
         )
 
         # Split eval and test from the remaining dataset.
         eval_ratio = split_ratios[1] / (split_ratios[1] + split_ratios[2])
+        eval_test_stratify_labels = (
+            eval_test_dataset[label_column] if label_column in eval_test_dataset.columns else None
+        )
         eval_dataset, test_dataset = train_test_split(
             eval_test_dataset,
             train_size=eval_ratio,
             random_state=random_seed,
-            shuffle=True
+            shuffle=True,
+            stratify=eval_test_stratify_labels
         )
 
         train_dataset = train_dataset.reset_index(drop=True)
@@ -82,13 +92,148 @@ def split_dataframe_dataset(
         dataset,
         train_size=split_ratios[0],
         random_state=random_seed,
-        shuffle=True
+        shuffle=True,
+        stratify=stratify_labels
     )
 
     train_dataset = train_dataset.reset_index(drop=True)
     test_dataset = test_dataset.reset_index(drop=True)
 
     return train_dataset, test_dataset
+
+
+def create_autoenc_splits(
+    dataset: pd.DataFrame,
+    eval: bool = True,
+    split_ratios: Optional[tuple] = None,
+    random_seed: Optional[int] = None,
+    label_column: str = "Class",
+    valid_label: int = 0
+) -> tuple:
+    """
+    Creates autoencoder train, eval, and test dataframe splits.
+
+    - Uses create_fnn_splits to create stratified dataframe splits.
+    - Keeps only valid transactions in the training split.
+    - Keeps mixed valid/fraud transactions in eval and test splits.
+    - Eval split defaults to True. If False, only train and test are returned.
+    - Split ratios default to (0.7, 0.15, 0.15) when eval=True.
+    - Split ratios default to (0.8, 0.2) when eval=False.
+    - Random seed is optional. If None, no fixed random seed is used.
+    - Returns a tuple containing the dataframe splits.
+    """
+
+    if label_column not in dataset.columns:
+        raise ValueError(f"{label_column} must exist in the dataset.")
+
+    if eval:
+        train_dataset, eval_dataset, test_dataset = create_fnn_splits(
+            dataset=dataset,
+            eval=eval,
+            split_ratios=split_ratios,
+            random_seed=random_seed,
+            label_column=label_column
+        )
+
+        train_dataset = train_dataset[train_dataset[label_column] == valid_label].reset_index(drop=True)
+
+        return train_dataset, eval_dataset, test_dataset
+
+    train_dataset, test_dataset = create_fnn_splits(
+        dataset=dataset,
+        eval=eval,
+        split_ratios=split_ratios,
+        random_seed=random_seed,
+        label_column=label_column
+    )
+
+    train_dataset = train_dataset[train_dataset[label_column] == valid_label].reset_index(drop=True)
+
+    return train_dataset, test_dataset
+
+
+
+# -----------------------------------------------
+#       Preprocess Splits
+# -----------------------------------------------
+
+def preprocess_splits(
+    train_dataset: pd.DataFrame,
+    eval_or_test_dataset: pd.DataFrame,
+    test_dataset: Optional[pd.DataFrame] = None,
+    label_column: str = "Class",
+    scaler_type: str = "standard"
+) -> tuple:
+    """
+    Normalizes train/test or train/eval/test dataframe splits.
+
+    - Fits the scaler on train feature columns only.
+    - Applies the same scaler to eval and test feature columns.
+    - Does not normalize the label column.
+    - Accepts either (train, test) or (train, eval, test) splits.
+    - Scaler type can be "standard" or "minmax".
+    - Returns a tuple of normalized dataframe splits.
+    """
+
+    if label_column not in train_dataset.columns:
+        raise ValueError(f"{label_column} must exist in the train dataset.")
+
+    if scaler_type == "standard":
+        scaler = StandardScaler()
+    elif scaler_type == "minmax":
+        scaler = MinMaxScaler()
+    else:
+        raise ValueError('scaler_type must be either "standard" or "minmax".')
+
+    feature_columns = train_dataset.drop(columns=[label_column]).select_dtypes(include="number").columns.tolist()
+    if len(feature_columns) == 0:
+        raise ValueError("No numeric feature columns found to normalize.")
+
+    # Fit the scaler on train features only.
+    scaler.fit(train_dataset[feature_columns])
+
+    normalized_train_dataset = _normalize_split(
+        dataset=train_dataset,
+        scaler=scaler,
+        feature_columns=feature_columns
+    )
+
+    if test_dataset is None:
+        normalized_test_dataset = _normalize_split(
+            dataset=eval_or_test_dataset,
+            scaler=scaler,
+            feature_columns=feature_columns
+        )
+
+        return normalized_train_dataset, normalized_test_dataset
+
+    normalized_eval_dataset = _normalize_split(
+        dataset=eval_or_test_dataset,
+        scaler=scaler,
+        feature_columns=feature_columns
+    )
+    normalized_test_dataset = _normalize_split(
+        dataset=test_dataset,
+        scaler=scaler,
+        feature_columns=feature_columns
+    )
+
+    return normalized_train_dataset, normalized_eval_dataset, normalized_test_dataset
+
+
+def _normalize_split(
+    dataset: pd.DataFrame,
+    scaler,
+    feature_columns: list
+) -> pd.DataFrame:
+    """
+    Applies an already-fitted scaler to a dataframe split.
+    """
+
+    normalized_dataset = dataset.copy()
+    normalized_dataset[feature_columns] = scaler.transform(normalized_dataset[feature_columns])
+
+    return normalized_dataset.reset_index(drop=True)
 
 
 
