@@ -33,5 +33,5 @@ dist/
 .idea/
 
 # Personal Testing
-_main
+_main*
 data/
