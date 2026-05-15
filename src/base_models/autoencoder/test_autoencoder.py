@@ -4,18 +4,19 @@ from pathlib import Path
 import random
 import sys
 import time
-from typing import Any
+from typing import Any, Optional
 
+import numpy as np
 import pandas as pd
 from tqdm import tqdm
 
 
-PROJECT_ROOT = Path(__file__).resolve().parents[2]
+PROJECT_ROOT = Path(__file__).resolve().parents[3]
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
-from src.autoencoder.autoencoder import AutoencoderConfig, AutoencoderFraudDetector
-from src.general_helpers.data_pipeline import create_autoenc_splits
+from src.base_models.autoencoder.autoencoder import AutoencoderConfig, AutoencoderFraudDetector
+from src.general_helpers.data_pipeline import create_autoenc_splits, create_autoencoder_splits
 
 
 DATASET_PATH = PROJECT_ROOT / "data" / "creditcard.csv"
@@ -27,7 +28,7 @@ DEFAULT_SEARCH_MODE = "grid"
 DEFAULT_MAX_TRIALS = 12
 DEFAULT_MAX_TRAIN_NORMAL_ROWS = 50_000
 EPOCHS = 30
-RESULTS_PATH = PROJECT_ROOT / "src" / "autoencoder" / "autoencoder_search_results.csv"
+RESULTS_PATH = PROJECT_ROOT / "src" / "base_models" / "autoencoder" / "autoencoder_search_results.csv"
 
 HYPERPARAMETER_SPACE = {
     "sensitivity": [98.8, 99.0, 99.2],
@@ -38,6 +39,66 @@ HYPERPARAMETER_SPACE = {
         (128, 64, 32, 16),
     ],
 }
+
+
+def run_autoencoder_finetuning(
+    dataset: pd.DataFrame,
+    output_dir: Optional[Path] = None,
+    label_column: str = LABEL_COLUMN,
+    random_seed: int = RANDOM_SEED,
+    config: Optional[AutoencoderConfig] = None,
+) -> dict[str, Any]:
+    """
+    Trains the autoencoder base model once and returns train/eval/test scores.
+
+    This is the stacking-friendly orchestration function: the autoencoder is
+    unsupervised, so it does not need k-fold OOF fitting. It trains on normal
+    rows from the train split inside AutoencoderFraudDetector.train() and then
+    scores all train/eval/test rows.
+    """
+
+    split = create_autoencoder_splits(
+        dataset=dataset,
+        random_seed=random_seed,
+        label_column=label_column,
+    )
+    train_dataset = split.train_dataset
+    eval_dataset = split.eval_dataset
+    test_dataset = split.test_dataset
+
+    detector = AutoencoderFraudDetector(
+        config or AutoencoderConfig(epochs=20, random_seed=random_seed)
+    )
+    history = detector.train(train_dataset, label_column=label_column)
+    train_probs = detector.anomaly_probability(train_dataset)
+    eval_probs = detector.anomaly_probability(eval_dataset)
+    test_probs = detector.anomaly_probability(test_dataset)
+    eval_metrics = detector.eval(eval_dataset, label_column=label_column)
+    test_metrics = detector.eval(test_dataset, label_column=label_column)
+
+    result = {
+        "model_name": "autoencoder",
+        "train_probs": train_probs.astype("float32"),
+        "eval_probs": eval_probs.astype("float32"),
+        "test_probs": test_probs.astype("float32"),
+        "y_train": train_dataset[label_column].to_numpy(dtype="float32"),
+        "y_eval": eval_dataset[label_column].to_numpy(dtype="float32"),
+        "y_test": test_dataset[label_column].to_numpy(dtype="float32"),
+        "history": history,
+        "eval_metrics": eval_metrics,
+        "test_metrics": test_metrics,
+    }
+    if output_dir is not None:
+        save_autoencoder_outputs(result, output_dir)
+
+    return result
+
+
+def save_autoencoder_outputs(result: dict[str, Any], output_dir: Path) -> None:
+    output_dir.mkdir(parents=True, exist_ok=True)
+    np.save(output_dir / "ae_train_probs.npy", result["train_probs"])
+    np.save(output_dir / "ae_val_probs.npy", result["eval_probs"])
+    np.save(output_dir / "ae_test_probs.npy", result["test_probs"])
 
 
 def main() -> None:
