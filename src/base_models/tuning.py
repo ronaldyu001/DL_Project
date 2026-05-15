@@ -14,6 +14,7 @@ def run_optuna_search(
     direction: str = "maximize",
 ) -> Any:
     import optuna
+    from tqdm.auto import tqdm
 
     optuna.logging.set_verbosity(optuna.logging.WARNING)
     sampler = optuna.samplers.TPESampler(seed=random_seed)
@@ -22,7 +23,23 @@ def run_optuna_search(
         sampler=sampler,
         study_name=study_name,
     )
-    study.optimize(objective, n_trials=n_trials, show_progress_bar=True)
+
+    print(f"\n[ Hyperparameter search ] {study_name} — {n_trials} trials (OOF average precision)")
+
+    with tqdm(total=n_trials, desc=study_name, leave=True, dynamic_ncols=True) as progress_bar:
+        def _on_trial_complete(study, trial):
+            progress_bar.update(1)
+            if study.best_trial is not None:
+                progress_bar.set_postfix(best=f"{study.best_value:.4f}")
+
+        study.optimize(
+            objective,
+            n_trials=n_trials,
+            callbacks=[_on_trial_complete],
+            show_progress_bar=False,
+        )
+
+    print(f"  best OOF average precision: {study.best_value:.4f}")
     return study
 
 

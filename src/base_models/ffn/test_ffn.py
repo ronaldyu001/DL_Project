@@ -51,8 +51,7 @@ def run_ffn_finetuning(
     label_column: str = LABEL_COLUMN,
     random_seed: int = RANDOM_SEED,
     n_splits: int = 5,
-    oof_epochs: int = 10,
-    final_epochs: int = 20,
+    epochs: int = 20,
     model_dir: Optional[Path] = None,
     results_dir: Optional[Path] = None,
     search: bool = True,
@@ -109,7 +108,7 @@ def run_ffn_finetuning(
             learning_rate=study.best_params["learning_rate"],
             weight_decay=study.best_params["weight_decay"],
             batch_size=study.best_params["batch_size"],
-            epochs=oof_epochs,
+            epochs=epochs,
             random_seed=random_seed,
         )
         if results_dir is not None:
@@ -117,7 +116,7 @@ def run_ffn_finetuning(
             save_study_csv(study, ffn_results_dir / "ffn_search_trials.csv")
             save_best_config_csv(study, ffn_results_dir / "ffn_best_config.csv")
     else:
-        best_config = FFNConfig(epochs=oof_epochs, random_seed=random_seed)
+        best_config = FFNConfig(epochs=epochs, random_seed=random_seed)
 
     # Build full-fidelity OOF predictions with the winning config.
     train_oof, fold_metrics = _ffn_oof(
@@ -128,8 +127,7 @@ def run_ffn_finetuning(
     )
 
     # Train one final model for eval/test predictions and saved artifacts.
-    final_config = dataclasses.replace(best_config, epochs=final_epochs, random_seed=random_seed)
-    final_model = FeedForwardFraudDetector(final_config)
+    final_model = FeedForwardFraudDetector(best_config)
     final_train_raw, internal_eval_raw = create_fnn_splits(
         dataset=train_dataset,
         eval=False,

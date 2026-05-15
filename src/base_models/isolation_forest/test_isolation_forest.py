@@ -51,7 +51,6 @@ def run_isolation_forest_finetuning(
     label_column: str = LABEL_COLUMN,
     random_seed: int = RANDOM_SEED,
     n_splits: int = 5,
-    config: Optional[IsolationForestConfig] = None,
     model_dir: Optional[Path] = None,
     results_dir: Optional[Path] = None,
     search: bool = True,
@@ -68,9 +67,6 @@ def run_isolation_forest_finetuning(
     train_dataset = split.train_dataset
     test_dataset = split.test_dataset
     y_train_int = train_dataset[label_column].astype(int).to_numpy()
-
-    if config is not None:
-        search = False
 
     if search:
         search_kfold = create_kfold_indices(
@@ -110,7 +106,7 @@ def run_isolation_forest_finetuning(
             save_study_csv(study, if_results_dir / "if_search_trials.csv")
             save_best_config_csv(study, if_results_dir / "if_best_config.csv")
     else:
-        best_config = config or IsolationForestConfig(random_seed=random_seed)
+        best_config = IsolationForestConfig(random_seed=random_seed)
 
     # Full-fidelity OOF with the winning config.
     train_oof, fold_metrics = _isolation_forest_oof(
