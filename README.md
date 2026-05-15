@@ -4,6 +4,28 @@ Fraud Detector using Stacked Ensemble Learning.
 
 ---
 
+# Setup
+
+```bash
+pip install -r requirements.txt
+```
+
+**macOS note:** PyTorch and pip-installed XGBoost ship incompatible copies of
+`libomp.dylib`, which segfaults when both load into the same process. The
+entry point sets `KMP_DUPLICATE_LIB_OK=TRUE` and `OMP_NUM_THREADS=1`
+automatically to avoid this. XGBoost will run single-threaded as a result.
+To override (e.g., on Linux/CI), set `OMP_NUM_THREADS` in your shell before
+launching.
+
+If you'd rather have multithreaded XGBoost on macOS, install it from
+conda-forge so its OpenMP runtime is compatible with PyTorch's:
+
+```bash
+conda install -c conda-forge xgboost
+```
+
+---
+
 # Usage
 
 Run the base-model finetuning script from the project root. Hyperparameter

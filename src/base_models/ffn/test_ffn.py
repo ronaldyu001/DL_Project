@@ -119,6 +119,7 @@ def run_ffn_finetuning(
         best_config = FFNConfig(epochs=epochs, random_seed=random_seed)
 
     # Build full-fidelity OOF predictions with the winning config.
+    print(f"[ ffn ] full {n_splits}-fold OOF with best config...", flush=True)
     train_oof, fold_metrics = _ffn_oof(
         train_dataset=train_dataset,
         config=best_config,
@@ -127,6 +128,7 @@ def run_ffn_finetuning(
     )
 
     # Train one final model for eval/test predictions and saved artifacts.
+    print("[ ffn ] training final model...", flush=True)
     final_model = FeedForwardFraudDetector(best_config)
     final_train_raw, internal_eval_raw = create_fnn_splits(
         dataset=train_dataset,

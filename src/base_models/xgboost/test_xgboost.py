@@ -99,6 +99,7 @@ def run_xgboost_finetuning(
         best_config = XGBoostConfig(random_seed=random_seed)
 
     # Full-fidelity OOF with the winning config.
+    print(f"[ xgboost ] full {n_splits}-fold OOF with best config...", flush=True)
     train_oof, fold_metrics = _xgboost_oof(
         train_dataset=train_dataset,
         config=best_config,
@@ -107,6 +108,7 @@ def run_xgboost_finetuning(
     )
 
     # Train one final model for eval/test predictions and saved artifacts.
+    print("[ xgboost ] training final model...", flush=True)
     final_model = XGBoostFraudDetector(dataclasses.replace(best_config, random_seed=random_seed))
     final_train_dataset, internal_eval_dataset = create_fnn_splits(
         dataset=train_dataset,
