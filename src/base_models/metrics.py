@@ -26,6 +26,7 @@ def best_threshold_f1(
 
     best_threshold = 0.5
     best_f1 = 0.0
+    # Try each threshold and keep the one with the best F1.
     for threshold in thresholds:
         f1 = f1_score(labels, probabilities >= threshold, zero_division=0)
         if f1 > best_f1:
@@ -45,6 +46,7 @@ def classification_metrics(
     if threshold is None:
         threshold, _ = best_threshold_f1(probabilities, labels)
 
+    # Convert scores to predictions and count confusion matrix cells.
     predictions = (probabilities >= threshold).astype(int)
     tn, fp, fn, tp = confusion_matrix(labels, predictions, labels=[0, 1]).ravel()
     has_both_classes = len(np.unique(labels)) == 2

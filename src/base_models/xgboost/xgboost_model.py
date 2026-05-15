@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 from typing import Optional
+import pickle
 
 import numpy as np
 import pandas as pd
@@ -14,6 +15,7 @@ class XGBoostConfig:
     max_depth: int = 6
     learning_rate: float = 0.05
     eval_metric: str = "aucpr"
+    early_stopping_rounds: int = 20
     n_jobs: int = -1
     random_seed: Optional[int] = 42
 
@@ -25,6 +27,7 @@ class XGBoostFraudDetector:
         self.feature_columns: Optional[list[str]] = None
         self.threshold: Optional[float] = None
         self.metrics: dict = {}
+        self.history: dict = {}
 
     def train(
         self,
@@ -37,6 +40,8 @@ class XGBoostFraudDetector:
 
         self.feature_columns = get_feature_columns(train_dataset, label_column=label_column)
         xgb = self._import_xgboost()
+
+        # Build class-balanced XGBoost model.
         labels = train_dataset[label_column].astype(int).to_numpy()
         negatives = max(int((labels == 0).sum()), 1)
         positives = max(int((labels == 1).sum()), 1)
@@ -50,12 +55,36 @@ class XGBoostFraudDetector:
             n_jobs=self.config.n_jobs,
             verbosity=0,
         )
-        self.model.fit(
-            train_dataset[self.feature_columns].to_numpy(dtype=np.float32),
-            labels,
-        )
+        train_features = train_dataset[self.feature_columns].to_numpy(dtype=np.float32)
+        fit_kwargs = {}
 
-        self.metrics = {"train_rows": int(len(train_dataset))}
+        # Add eval data and early stopping when eval rows are passed.
+        if eval_dataset is not None:
+            fit_kwargs["eval_set"] = [
+                (
+                    eval_dataset[self.feature_columns].to_numpy(dtype=np.float32),
+                    eval_dataset[label_column].astype(int).to_numpy(),
+                )
+            ]
+            fit_kwargs["verbose"] = False
+            fit_kwargs["early_stopping_rounds"] = self.config.early_stopping_rounds
+        try:
+            self.model.fit(
+                train_features,
+                labels,
+                **fit_kwargs,
+            )
+        except TypeError:
+            if eval_dataset is not None:
+                self.model.set_params(early_stopping_rounds=self.config.early_stopping_rounds)
+                fit_kwargs.pop("early_stopping_rounds", None)
+            self.model.fit(train_features, labels, **fit_kwargs)
+        # Save training history if xgboost exposes it.
+        if hasattr(self.model, "evals_result"):
+            raw_history = self.model.evals_result()
+            self.history = flatten_xgboost_history(raw_history)
+
+        self.metrics = {"train_rows": int(len(train_dataset)), "history": self.history}
         if eval_dataset is not None:
             probabilities = self.score(eval_dataset)
             eval_labels = eval_dataset[label_column].astype(int).to_numpy()
@@ -63,6 +92,20 @@ class XGBoostFraudDetector:
             self.threshold = self.metrics["eval"]["threshold"]
 
         return self.metrics
+
+    def save_model(self, model_path) -> None:
+        self._require_model()
+        with open(model_path, "wb") as model_file:
+            pickle.dump(
+                {
+                    "config": self.config,
+                    "feature_columns": self.feature_columns,
+                    "threshold": self.threshold,
+                    "history": self.history,
+                    "model": self.model,
+                },
+                model_file,
+            )
 
     def eval(self, dataset: pd.DataFrame, label_column: str = "Class") -> dict:
         if label_column not in dataset.columns:
@@ -97,3 +140,11 @@ class XGBoostFraudDetector:
             ) from exc
 
         return xgb
+
+
+def flatten_xgboost_history(raw_history: dict) -> dict:
+    flat_history = {}
+    for split_name, metrics in raw_history.items():
+        for metric_name, values in metrics.items():
+            flat_history[f"{split_name}_{metric_name}"] = values
+    return flat_history
