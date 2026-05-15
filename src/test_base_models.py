@@ -46,6 +46,7 @@ def main(
     models: tuple[str, ...] = DEFAULT_MODELS,
     search: bool = True,
     n_trials: int = 10,
+    combine_meval_to_mtrain: bool = False,
 ) -> None:
     dataset = pd.read_csv(DATASET_PATH)
     ensure_dir(output_dir)
@@ -65,16 +66,30 @@ def main(
     ]
     assert_aligned_labels(results)
 
-    # Build ensemble train and test features from selected model scores.
+    # Build ensemble train, eval, and test features from selected model scores.
+    feature_names = [result["model_name"] for result in results]
     meta_x_train = np.column_stack([train_feature(result) for result in results])
+    meta_x_eval = np.column_stack([result["eval_probs"] for result in results])
     meta_x_test = np.column_stack([result["test_probs"] for result in results])
+    y_train = results[0]["y_train"]
+    y_eval = results[0]["y_eval"]
+    y_test = results[0]["y_test"]
+
+    if combine_meval_to_mtrain:
+        # Stack the eval rows onto the meta-train matrix and drop the separate eval split.
+        meta_x_train = np.vstack([meta_x_train, meta_x_eval])
+        y_train = np.concatenate([y_train, y_eval])
+        meta_x_eval = None
+        y_eval = None
 
     # Save labels and ensemble-ready feature matrices.
-    feature_names = [result["model_name"] for result in results]
     pd.DataFrame(meta_x_train, columns=feature_names).to_csv(output_dir / "meta_x_train.csv", index=False)
     pd.DataFrame(meta_x_test, columns=feature_names).to_csv(output_dir / "meta_x_test.csv", index=False)
-    pd.DataFrame({"Class": results[0]["y_train"]}).to_csv(output_dir / "y_train.csv", index=False)
-    pd.DataFrame({"Class": results[0]["y_test"]}).to_csv(output_dir / "y_test.csv", index=False)
+    pd.DataFrame({"Class": y_train}).to_csv(output_dir / "y_train.csv", index=False)
+    pd.DataFrame({"Class": y_test}).to_csv(output_dir / "y_test.csv", index=False)
+    if meta_x_eval is not None:
+        pd.DataFrame(meta_x_eval, columns=feature_names).to_csv(output_dir / "meta_x_eval.csv", index=False)
+        pd.DataFrame({"Class": y_eval}).to_csv(output_dir / "y_eval.csv", index=False)
     pd.Series(feature_names).to_csv(
         output_dir / "meta_feature_names.csv",
         index=False,
@@ -130,6 +145,11 @@ def parse_args() -> argparse.Namespace:
         default=10,
         help="Optuna trials per base model when search is enabled.",
     )
+    parser.add_argument(
+        "--combine-meval-to-mtrain",
+        action="store_true",
+        help="Stack meta-eval rows onto meta-train and skip writing the eval split.",
+    )
     return parser.parse_args()
 
 
@@ -147,12 +167,15 @@ def train_feature(result: dict) -> np.ndarray:
 
 def assert_aligned_labels(results: list[dict]) -> None:
     y_train = results[0]["y_train"]
+    y_eval = results[0]["y_eval"]
     y_test = results[0]["y_test"]
 
     # Stop if any base model returns rows in a different order.
     for result in results[1:]:
         if not np.array_equal(y_train, result["y_train"]):
             raise ValueError(f"{result['model_name']} train labels do not align.")
+        if not np.array_equal(y_eval, result["y_eval"]):
+            raise ValueError(f"{result['model_name']} eval labels do not align.")
         if not np.array_equal(y_test, result["y_test"]):
             raise ValueError(f"{result['model_name']} test labels do not align.")
 
@@ -166,4 +189,5 @@ if __name__ == "__main__":
         models=tuple(args.models),
         search=args.search,
         n_trials=args.n_trials,
+        combine_meval_to_mtrain=args.combine_meval_to_mtrain,
     )
