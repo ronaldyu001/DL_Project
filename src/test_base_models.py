@@ -1,6 +1,10 @@
 import argparse
+import os
 from pathlib import Path
 import sys
+
+# Avoid macOS OpenMP duplicate-library crash when PyTorch and XGBoost share a process.
+os.environ.setdefault("KMP_DUPLICATE_LIB_OK", "TRUE")
 
 import numpy as np
 import pandas as pd
