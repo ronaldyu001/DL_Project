@@ -1,7 +1,9 @@
+from dataclasses import dataclass
 from typing import Optional
 from pathlib import Path
+import numpy as np
 import pandas as pd
-from sklearn.model_selection import train_test_split
+from sklearn.model_selection import StratifiedKFold, train_test_split
 from sklearn.preprocessing import MinMaxScaler, StandardScaler
 
 
@@ -20,8 +22,8 @@ def load_csv_dataset(csv_name: str, base_path: Optional[str] = None) -> pd.DataF
     """
 
     # Verfiy the path and load the csv.
-    DATASET_PATH = "data/" if not base_path else base_path
-    dataset_path = Path(__file__).resolve().parent / DATASET_PATH / Path(csv_name)
+    DATASET_PATH = Path("data") if not base_path else Path(base_path)
+    dataset_path = Path(__file__).resolve().parents[2] / DATASET_PATH / Path(csv_name)
     dataset = pd.read_csv(filepath_or_buffer=dataset_path)
     dataset.attrs["dataset_name"] = Path(csv_name).stem
     print(f"\n[ Load Dataset ]\n\nDataset successfuly loaded from {dataset_path}.\n\n")
@@ -30,9 +32,49 @@ def load_csv_dataset(csv_name: str, base_path: Optional[str] = None) -> pd.DataF
 
 
 
+@dataclass
+class BaseModelSplit:
+    """
+    Container for leakage-safe base-model splits.
+
+    Supervised models should use kfold_indices to create out-of-fold training
+    predictions for stacking. Unsupervised anomaly models can train once on the
+    normal rows from train_dataset and score train/eval/test directly because
+    they do not fit to fraud labels.
+    """
+
+    train_dataset: pd.DataFrame
+    eval_dataset: pd.DataFrame
+    test_dataset: pd.DataFrame
+    kfold_indices: Optional[list[tuple[np.ndarray, np.ndarray]]] = None
+    feature_columns: Optional[list[str]] = None
+
+
 # -----------------------------------------------
 #       Split Dataset
 # -----------------------------------------------
+
+def create_global_splits(
+    dataset: pd.DataFrame,
+    eval: bool = True,
+    split_ratios: Optional[tuple] = None,
+    random_seed: Optional[int] = 42,
+    label_column: str = "Class",
+) -> tuple:
+    """
+    Creates the shared train/eval/test split used by all base models.
+
+    Splitting is stratified and happens before scaling, so preprocessing can fit
+    on train only and then transform eval/test without leakage.
+    """
+
+    return create_fnn_splits(
+        dataset=dataset,
+        eval=eval,
+        split_ratios=split_ratios,
+        random_seed=random_seed,
+        label_column=label_column,
+    )
 
 def create_fnn_splits(
     dataset: pd.DataFrame,
@@ -102,6 +144,98 @@ def create_fnn_splits(
     return train_dataset, test_dataset
 
 
+def create_kfold_indices(
+    dataset: pd.DataFrame,
+    label_column: str = "Class",
+    n_splits: int = 5,
+    random_seed: Optional[int] = 42,
+) -> list[tuple[np.ndarray, np.ndarray]]:
+    """
+    Creates deterministic stratified k-fold row indices for supervised OOF work.
+    """
+
+    if label_column not in dataset.columns:
+        raise ValueError(f"{label_column} must exist in the dataset.")
+
+    splitter = StratifiedKFold(
+        n_splits=n_splits,
+        shuffle=True,
+        random_state=random_seed,
+    )
+
+    labels = dataset[label_column].to_numpy()
+    return [(train_idx, valid_idx) for train_idx, valid_idx in splitter.split(dataset, labels)]
+
+
+def create_ffn_splits(
+    dataset: pd.DataFrame,
+    eval: bool = True,
+    split_ratios: Optional[tuple] = None,
+    random_seed: Optional[int] = 42,
+    label_column: str = "Class",
+    n_splits: int = 5,
+    scaler_type: str = "standard",
+) -> BaseModelSplit:
+    """
+    Creates FFN-ready splits plus stratified k-fold indices for OOF predictions.
+    """
+
+    train_dataset, eval_dataset, test_dataset = create_global_splits(
+        dataset=dataset,
+        eval=eval,
+        split_ratios=split_ratios,
+        random_seed=random_seed,
+        label_column=label_column,
+    )
+    if not eval:
+        raise ValueError("Base-model finetuning expects train/eval/test splits.")
+
+    train_dataset, eval_dataset, test_dataset = preprocess_splits(
+        train_dataset=train_dataset,
+        eval_or_test_dataset=eval_dataset,
+        test_dataset=test_dataset,
+        label_column=label_column,
+        scaler_type=scaler_type,
+    )
+
+    return BaseModelSplit(
+        train_dataset=train_dataset,
+        eval_dataset=eval_dataset,
+        test_dataset=test_dataset,
+        kfold_indices=create_kfold_indices(
+            dataset=train_dataset,
+            label_column=label_column,
+            n_splits=n_splits,
+            random_seed=random_seed,
+        ),
+        feature_columns=get_feature_columns(train_dataset, label_column=label_column),
+    )
+
+
+def create_xgboost_splits(
+    dataset: pd.DataFrame,
+    eval: bool = True,
+    split_ratios: Optional[tuple] = None,
+    random_seed: Optional[int] = 42,
+    label_column: str = "Class",
+    n_splits: int = 5,
+    scaler_type: str = "standard",
+) -> BaseModelSplit:
+    """
+    Creates XGBoost-ready splits plus stratified k-fold indices for OOF predictions.
+    """
+
+    return create_ffn_splits(
+        dataset=dataset,
+        eval=eval,
+        split_ratios=split_ratios,
+        random_seed=random_seed,
+        label_column=label_column,
+        n_splits=n_splits,
+        scaler_type=scaler_type,
+    )
+
+
 def create_autoenc_splits(
     dataset: pd.DataFrame,
     eval: bool = True,
@@ -150,6 +284,75 @@ def create_autoenc_splits(
     train_dataset = train_dataset[train_dataset[label_column] == valid_label].reset_index(drop=True)
 
     return train_dataset, test_dataset
+
+
+def create_autoencoder_splits(
+    dataset: pd.DataFrame,
+    eval: bool = True,
+    split_ratios: Optional[tuple] = None,
+    random_seed: Optional[int] = 42,
+    label_column: str = "Class",
+    valid_label: int = 0,
+    scaler_type: str = "standard",
+) -> BaseModelSplit:
+    """
+    Creates autoencoder-ready splits.
+
+    No k-fold indices are returned because the autoencoder trains unsupervised
+    on normal rows only; using the same global split is enough for leakage-free
+    train/eval/test scoring.
+    """
+
+    train_dataset, eval_dataset, test_dataset = create_global_splits(
+        dataset=dataset,
+        eval=eval,
+        split_ratios=split_ratios,
+        random_seed=random_seed,
+        label_column=label_column,
+    )
+    if not eval:
+        raise ValueError("Base-model finetuning expects train/eval/test splits.")
+
+    train_dataset, eval_dataset, test_dataset = preprocess_splits(
+        train_dataset=train_dataset,
+        eval_or_test_dataset=eval_dataset,
+        test_dataset=test_dataset,
+        label_column=label_column,
+        scaler_type=scaler_type,
+    )
+    return BaseModelSplit(
+        train_dataset=train_dataset,
+        eval_dataset=eval_dataset,
+        test_dataset=test_dataset,
+        feature_columns=get_feature_columns(train_dataset, label_column=label_column),
+    )
+
+
+def create_isolation_forest_splits(
+    dataset: pd.DataFrame,
+    eval: bool = True,
+    split_ratios: Optional[tuple] = None,
+    random_seed: Optional[int] = 42,
+    label_column: str = "Class",
+    valid_label: int = 0,
+    scaler_type: str = "standard",
+) -> BaseModelSplit:
+    """
+    Creates Isolation Forest-ready splits.
+
+    Like the autoencoder, this unsupervised model trains on normal train rows
+    and does not need k-fold fitting.
+    """
+
+    return create_autoencoder_splits(
+        dataset=dataset,
+        eval=eval,
+        split_ratios=split_ratios,
+        random_seed=random_seed,
+        label_column=label_column,
+        valid_label=valid_label,
+        scaler_type=scaler_type,
+    )
 
 
 
@@ -219,6 +422,30 @@ def preprocess_splits(
     )
 
     return normalized_train_dataset, normalized_eval_dataset, normalized_test_dataset
+
+
+def get_feature_columns(
+    dataset: pd.DataFrame,
+    label_column: str = "Class",
+    drop_columns: Optional[list[str]] = None,
+) -> list[str]:
+    """
+    Returns numeric feature columns excluding labels and optional drops.
+    """
+
+    excluded_columns = {label_column}
+    if drop_columns:
+        excluded_columns.update(drop_columns)
+
+    feature_columns = [
+        column
+        for column in dataset.select_dtypes(include="number").columns.tolist()
+        if column not in excluded_columns
+    ]
+    if not feature_columns:
+        raise ValueError("No numeric feature columns found.")
+
+    return feature_columns
 
 
 def _normalize_split(

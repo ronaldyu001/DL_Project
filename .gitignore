@@ -2,11 +2,13 @@
 __pycache__/
 *.py[cod]
 *$py.class
+.python-version
 
 # Virtual environments
 .venv/
 venv/
 env/
+.env/
 
 # Environment variables
 .env
@@ -16,7 +18,10 @@ env/
 .pytest_cache/
 .mypy_cache/
 .ruff_cache/
+.tox/
+.nox/
 .coverage
+.coverage.*
 htmlcov/
 
 # Jupyter
@@ -26,12 +31,38 @@ htmlcov/
 build/
 dist/
 *.egg-info/
+pip-wheel-metadata/
 
 # OS/editor files
 .DS_Store
+.AppleDouble
+.LSOverride
 .vscode/
 .idea/
+*.swp
+*.swo
 
-# Personal Testing
-_main*
+# Local data
 data/
+
+# Generated model artifacts and predictions
+src/base_models/outputs/
+outputs/
+models/
+checkpoints/
+*.npy
+*.npz
+*.pt
+*.pth
+*.ckpt
+*.pkl
+*.joblib
+
+# Logs and local run output
+logs/
+*.log
+wandb/
+runs/
+
+# Personal testing
+_main*
