@@ -32,7 +32,7 @@ Run the base-model finetuning script from the project root. Hyperparameter
 search is on by default (Optuna TPE, scored on OOF average precision).
 
 ```bash
-# Default: search on, 10 trials per model.
+# Default: search on, 10 trials per model, eval split written separately.
 python src/test_base_models.py
 
 # More trials per model.
@@ -43,6 +43,9 @@ python src/test_base_models.py --no-search
 
 # Run only some models.
 python src/test_base_models.py --models ffn xgboost
+
+# Stack eval rows onto meta-train (skips writing the separate eval split).
+python src/test_base_models.py --combine-meval-to-mtrain
 ```
 
 Flags:
@@ -50,6 +53,8 @@ Flags:
 - `--n-trials N` — Optuna trials per base model (default 10).
 - `--no-search` — skip search and use defaults.
 - `--models` — one or more of `ffn`, `xgboost`, `autoencoder`, `isolation_forest`, or `all`.
+- `--combine-meval-to-mtrain` — stack meta-eval rows onto meta-train and skip
+  writing the eval split (default: keep separate).
 - `--output-dir`, `--models-dir`, `--results-dir` — override save folders.
 
 ## Changing the search space
@@ -130,20 +135,21 @@ same `objective` function.
 
 ## Outputs
 
-The script saves ensemble-ready CSVs in the output folder:
+The dataset is split three ways (≈70/15/15 train/eval/test). The script saves
+ensemble-ready CSVs in the output folder:
 
-- `meta_x_train.csv`
-- `meta_x_test.csv`
-- `y_train.csv`
-- `y_test.csv`
-- `meta_feature_names.csv`
+- `meta_x_train.csv` — one column per base model, train rows. Each column is
+  produced by k-fold out-of-fold prediction so the meta-learner never trains
+  on predictions from a base model that saw the same row.
+- `meta_x_eval.csv` — eval rows, predictions from the final base model
+  (trained on full train, used eval for early stopping / threshold).
+- `meta_x_test.csv` — test rows, predictions from the same final base model.
+- `y_train.csv`, `y_eval.csv`, `y_test.csv` — matching labels.
+- `meta_feature_names.csv` — column-name reference.
 
-`meta_x_train.csv` has one column per selected base model. Each train column is
-made from k-fold out-of-fold predictions, so the future ensemble learner does
-not train on base-model predictions from a model that saw that same row.
-
-`meta_x_test.csv` has one column per selected base model from the final
-base-model predictions on the held-out test set.
+Pass `--combine-meval-to-mtrain` to stack `meta_x_eval` onto `meta_x_train`
+(and `y_eval` onto `y_train`); the separate eval files are then **not**
+written.
 
 Model files are saved under `models/<base_model>/`.
 Plots and CSV results are saved under `results/<base_model>/`.

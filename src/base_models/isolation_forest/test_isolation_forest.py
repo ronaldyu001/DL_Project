@@ -32,7 +32,6 @@ from src.base_models.tuning import (
 )
 # Add isolation forest data splitter and scaler.
 from src.general_helpers.data_pipeline import (
-    create_fnn_splits,
     create_isolation_forest_splits,
     create_kfold_indices,
     preprocess_splits,
@@ -57,14 +56,16 @@ def run_isolation_forest_finetuning(
     n_trials: int = 15,
     search_n_splits: int = 3,
 ) -> dict:
-    # Build shared train and test splits.
+    # Build shared train / eval / test splits and fold ids.
     split = create_isolation_forest_splits(
         dataset=dataset,
+        eval=True,
         random_seed=random_seed,
         label_column=label_column,
         n_splits=n_splits,
     )
     train_dataset = split.train_dataset
+    eval_dataset = split.eval_dataset
     test_dataset = split.test_dataset
     y_train_int = train_dataset[label_column].astype(int).to_numpy()
 
@@ -120,42 +121,36 @@ def run_isolation_forest_finetuning(
     # Build final detector.
     print("[ isolation_forest ] training final model...", flush=True)
     detector = IsolationForestFraudDetector(dataclasses.replace(best_config, random_seed=random_seed))
-    final_train_raw, internal_eval_raw = create_fnn_splits(
-        dataset=train_dataset,
-        eval=False,
-        split_ratios=(0.85, 0.15),
-        random_seed=random_seed,
-        label_column=label_column,
-    )
-    # Fit final scaler on internal train only.
-    final_train_scaled, internal_eval_scaled, test_scaled = preprocess_splits(
-        train_dataset=final_train_raw,
-        eval_or_test_dataset=internal_eval_raw,
+    # Fit scaler on full train only, transform eval and test with it.
+    train_scaled, eval_scaled, test_scaled = preprocess_splits(
+        train_dataset=train_dataset,
+        eval_or_test_dataset=eval_dataset,
         test_dataset=test_dataset,
         label_column=label_column,
     )
     # Train detector.
-    history = detector.train(final_train_scaled, internal_eval_scaled, label_column=label_column)
+    history = detector.train(train_scaled, eval_scaled, label_column=label_column)
     # Save best model if folder was passed.
     if model_dir is not None:
         detector.save_model(model_folder(model_dir, "isolation_forest") / "isolation_forest.pkl")
-    # Score test rows.
+    # Score eval and test rows.
+    eval_probs = detector.score(eval_scaled)
     test_probs = detector.score(test_scaled)
-    # Evaluate internal eval rows.
-    internal_eval_metrics = detector.eval(internal_eval_scaled, label_column=label_column)
-    # Evaluate test rows.
+    eval_metrics = detector.eval(eval_scaled, label_column=label_column)
     test_metrics = detector.eval(test_scaled, label_column=label_column)
 
     # Package outputs.
     result = {
         "model_name": "isolation_forest",
         "train_probs": train_oof,
+        "eval_probs": eval_probs,
         "test_probs": test_probs,
         "y_train": train_dataset[label_column].to_numpy(dtype=np.float32),
-        "y_test": test_scaled[label_column].to_numpy(dtype=np.float32),
+        "y_eval": eval_dataset[label_column].to_numpy(dtype=np.float32),
+        "y_test": test_dataset[label_column].to_numpy(dtype=np.float32),
         "history": history,
         "fold_metrics": fold_metrics,
-        "internal_eval_metrics": internal_eval_metrics,
+        "eval_metrics": eval_metrics,
         "test_metrics": test_metrics,
         "best_config": dataclasses.asdict(best_config),
     }
@@ -163,7 +158,7 @@ def run_isolation_forest_finetuning(
     if results_dir is not None:
         save_metrics_csv(
             [
-                {"split": "internal_eval", **internal_eval_metrics},
+                {"split": "eval", **eval_metrics},
                 {"split": "test", **test_metrics},
             ],
             results_folder(results_dir, "isolation_forest") / "if_metrics.csv",

@@ -24,7 +24,6 @@ from src.base_models.tuning import (
 )
 from src.general_helpers.data_pipeline import (
     create_autoencoder_splits,
-    create_fnn_splits,
     create_kfold_indices,
 )
 
@@ -65,14 +64,16 @@ def run_autoencoder_finetuning(
     Optuna study picks the best hyperparameters by OOF average precision.
     """
 
-    # Build shared splits and fold ids.
+    # Build shared train / eval / test splits and fold ids.
     split = create_autoencoder_splits(
         dataset=dataset,
+        eval=True,
         random_seed=random_seed,
         label_column=label_column,
         n_splits=n_splits,
     )
     train_dataset = split.train_dataset
+    eval_dataset = split.eval_dataset
     test_dataset = split.test_dataset
     y_train_int = train_dataset[label_column].astype(int).to_numpy()
 
@@ -134,22 +135,16 @@ def run_autoencoder_finetuning(
     # Train one final model for eval/test predictions and saved artifacts.
     print("[ autoencoder ] training final model...", flush=True)
     detector = AutoencoderFraudDetector(best_config)
-    final_train_dataset, internal_eval_dataset = create_fnn_splits(
-        dataset=train_dataset,
-        eval=False,
-        split_ratios=(0.85, 0.15),
-        random_seed=random_seed,
-        label_column=label_column,
-    )
-    history = detector.train(final_train_dataset, eval_dataset=internal_eval_dataset, label_column=label_column)
+    history = detector.train(train_dataset, eval_dataset=eval_dataset, label_column=label_column)
     if model_dir is not None:
         detector.save_model(model_folder(model_dir, "autoencoder") / "autoencoder.pt")
     if results_dir is not None:
         autoencoder_results_dir = results_folder(results_dir, "autoencoder")
         plot_loss(history, autoencoder_results_dir / "ae_loss.png", "Autoencoder Loss")
 
+    eval_probs = detector.anomaly_probability(eval_dataset)
     test_probs = detector.anomaly_probability(test_dataset)
-    internal_eval_metrics = detector.eval(internal_eval_dataset, label_column=label_column)
+    eval_metrics = detector.eval(eval_dataset, label_column=label_column)
     test_metrics = detector.eval(test_dataset, label_column=label_column)
 
     best_config_record = {
@@ -159,12 +154,14 @@ def run_autoencoder_finetuning(
     result = {
         "model_name": "autoencoder",
         "train_probs": train_oof.astype("float32"),
+        "eval_probs": eval_probs.astype("float32"),
         "test_probs": test_probs.astype("float32"),
         "y_train": train_dataset[label_column].to_numpy(dtype="float32"),
+        "y_eval": eval_dataset[label_column].to_numpy(dtype="float32"),
         "y_test": test_dataset[label_column].to_numpy(dtype="float32"),
         "history": history,
         "fold_metrics": fold_metrics,
-        "internal_eval_metrics": internal_eval_metrics,
+        "eval_metrics": eval_metrics,
         "test_metrics": test_metrics,
         "best_config": best_config_record,
     }
@@ -172,7 +169,7 @@ def run_autoencoder_finetuning(
     if results_dir is not None:
         save_metrics_csv(
             [
-                {"split": "internal_eval", **internal_eval_metrics},
+                {"split": "eval", **eval_metrics},
                 {"split": "test", **test_metrics},
             ],
             results_folder(results_dir, "autoencoder") / "ae_metrics.csv",

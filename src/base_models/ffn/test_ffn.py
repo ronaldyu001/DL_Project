@@ -24,7 +24,6 @@ from src.base_models.tuning import (
 )
 from src.general_helpers.data_pipeline import (
     create_ffn_splits,
-    create_fnn_splits,
     create_kfold_indices,
     preprocess_splits,
 )
@@ -59,14 +58,16 @@ def run_ffn_finetuning(
     search_n_splits: int = 3,
     search_epochs: int = 5,
 ) -> dict:
-    # Build shared splits and fold ids.
+    # Build shared train / eval / test splits and fold ids.
     split = create_ffn_splits(
         dataset=dataset,
+        eval=True,
         random_seed=random_seed,
         label_column=label_column,
         n_splits=n_splits,
     )
     train_dataset = split.train_dataset
+    eval_dataset = split.eval_dataset
     test_dataset = split.test_dataset
     y_train_int = train_dataset[label_column].astype(int).to_numpy()
 
@@ -130,28 +131,22 @@ def run_ffn_finetuning(
     # Train one final model for eval/test predictions and saved artifacts.
     print("[ ffn ] training final model...", flush=True)
     final_model = FeedForwardFraudDetector(best_config)
-    final_train_raw, internal_eval_raw = create_fnn_splits(
-        dataset=train_dataset,
-        eval=False,
-        split_ratios=(0.85, 0.15),
-        random_seed=random_seed,
-        label_column=label_column,
-    )
-    final_train_scaled, internal_eval_scaled, test_scaled = preprocess_splits(
-        train_dataset=final_train_raw,
-        eval_or_test_dataset=internal_eval_raw,
+    train_scaled, eval_scaled, test_scaled = preprocess_splits(
+        train_dataset=train_dataset,
+        eval_or_test_dataset=eval_dataset,
         test_dataset=test_dataset,
         label_column=label_column,
     )
-    history = final_model.train(final_train_scaled, internal_eval_scaled, label_column=label_column)
+    history = final_model.train(train_scaled, eval_scaled, label_column=label_column)
     if model_dir is not None:
         final_model.save_model(model_folder(model_dir, "ffn") / "ffn.pt")
     if results_dir is not None:
         ffn_results_dir = results_folder(results_dir, "ffn")
         plot_loss(history, ffn_results_dir / "ffn_loss.png", "FFN Loss")
 
+    eval_probs = final_model.score(eval_scaled)
     test_probs = final_model.score(test_scaled)
-    internal_eval_metrics = final_model.eval(internal_eval_scaled, label_column=label_column)
+    eval_metrics = final_model.eval(eval_scaled, label_column=label_column)
     test_metrics = final_model.eval(test_scaled, label_column=label_column)
 
     best_config_record = {
@@ -161,12 +156,14 @@ def run_ffn_finetuning(
     result = {
         "model_name": "ffn",
         "train_oof": train_oof,
+        "eval_probs": eval_probs,
         "test_probs": test_probs,
         "y_train": train_dataset[label_column].to_numpy(dtype=np.float32),
-        "y_test": test_scaled[label_column].to_numpy(dtype=np.float32),
+        "y_eval": eval_dataset[label_column].to_numpy(dtype=np.float32),
+        "y_test": test_dataset[label_column].to_numpy(dtype=np.float32),
         "history": history,
         "fold_metrics": fold_metrics,
-        "internal_eval_metrics": internal_eval_metrics,
+        "eval_metrics": eval_metrics,
         "test_metrics": test_metrics,
         "best_config": best_config_record,
     }
@@ -174,7 +171,7 @@ def run_ffn_finetuning(
     if results_dir is not None:
         save_metrics_csv(
             [
-                {"split": "internal_eval", **internal_eval_metrics},
+                {"split": "eval", **eval_metrics},
                 {"split": "test", **test_metrics},
             ],
             results_folder(results_dir, "ffn") / "ffn_metrics.csv",
