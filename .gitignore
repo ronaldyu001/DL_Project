@@ -44,6 +44,7 @@ pip-wheel-metadata/
 
 # Local data
 data/
+results/
 
 # Generated model artifacts and predictions
 src/base_models/outputs/
