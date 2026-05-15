@@ -123,6 +123,7 @@ def run_autoencoder_finetuning(
         best_config = AutoencoderConfig(epochs=epochs, random_seed=random_seed)
 
     # Full-fidelity OOF with the winning config.
+    print(f"[ autoencoder ] full {n_splits}-fold OOF with best config...", flush=True)
     train_oof, fold_metrics = _autoencoder_oof(
         train_dataset=train_dataset,
         config=best_config,
@@ -131,6 +132,7 @@ def run_autoencoder_finetuning(
     )
 
     # Train one final model for eval/test predictions and saved artifacts.
+    print("[ autoencoder ] training final model...", flush=True)
     detector = AutoencoderFraudDetector(best_config)
     final_train_dataset, internal_eval_dataset = create_fnn_splits(
         dataset=train_dataset,

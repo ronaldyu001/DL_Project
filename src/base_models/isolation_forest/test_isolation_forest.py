@@ -109,6 +109,7 @@ def run_isolation_forest_finetuning(
         best_config = IsolationForestConfig(random_seed=random_seed)
 
     # Full-fidelity OOF with the winning config.
+    print(f"[ isolation_forest ] full {n_splits}-fold OOF with best config...", flush=True)
     train_oof, fold_metrics = _isolation_forest_oof(
         train_dataset=train_dataset,
         config=best_config,
@@ -117,6 +118,7 @@ def run_isolation_forest_finetuning(
     )
 
     # Build final detector.
+    print("[ isolation_forest ] training final model...", flush=True)
     detector = IsolationForestFraudDetector(dataclasses.replace(best_config, random_seed=random_seed))
     final_train_raw, internal_eval_raw = create_fnn_splits(
         dataset=train_dataset,
