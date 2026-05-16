@@ -1,0 +1,29 @@
+\begin{thebibliography}{1}
+
+\bibitem{alarfaj2022}
+Fawaz~Khaled Alarfaj, Iqra Malik, Hikmat~Ullah Khan, Naif Almusallam, Muhammad
+  Ramzan, and Muzamil Ahmed.
+\newblock Credit card fraud detection using state-of-the-art machine learning
+  and deep learning algorithms.
+\newblock {\em IEEE Access}, 10:39700--39715, 2022.
+
+\bibitem{grinsztajn2022}
+L\'{e}o Grinsztajn, Edouard Oyallon, and Ga\"{e}l Varoquaux.
+\newblock Why do tree-based models still outperform deep learning on typical
+  tabular data?
+\newblock In {\em Advances in Neural Information Processing Systems (NeurIPS)},
+  2022.
+
+\bibitem{pumsirirat2018}
+Apapan Pumsirirat and Liu Yan.
+\newblock Credit card fraud detection using deep learning based on auto-encoder
+  and restricted {Boltzmann} machine.
+\newblock {\em International Journal of Advanced Computer Science and
+  Applications}, 9(1), 2018.
+
+\bibitem{wolpert1992stacking}
+David~H. Wolpert.
+\newblock Stacked generalization.
+\newblock {\em Neural Networks}, 5(2):241--259, 1992.
+
+\end{thebibliography}

@@ -1,0 +1,54 @@
+\relax 
+\providecommand\hyper@newdestlabel[2]{}
+\providecommand\HyField@AuxAddToFields[1]{}
+\providecommand\HyField@AuxAddToCoFields[2]{}
+\@writefile{toc}{\contentsline {section}{\numberline {1}Problem Statement}{1}{section.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {2}Motivation}{1}{section.2}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {2.1}Application importance}{1}{subsection.2.1}\protected@file@percent }
+\citation{alarfaj2022}
+\citation{pumsirirat2018}
+\citation{pumsirirat2018}
+\citation{alarfaj2022}
+\citation{grinsztajn2022}
+\citation{wolpert1992stacking}
+\@writefile{toc}{\contentsline {subsection}{\numberline {2.2}Gap addressed}{2}{subsection.2.2}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {2.3}Ethical considerations}{2}{subsection.2.3}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {3}Related Works}{2}{section.3}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{Autoencoders for fraud anomaly detection.}{2}{section*.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{Comparative classifier studies.}{2}{section*.2}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{Tabular deep learning vs. tree-based methods.}{2}{section*.3}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{Stacked generalization.}{3}{section*.4}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {4}Methods}{3}{section.4}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {4.1}Architecture overview}{3}{subsection.4.1}\protected@file@percent }
+\@writefile{lof}{\contentsline {figure}{\numberline {1}{\ignorespaces The stacking pipeline. Four base models produce per-transaction outputs that form a 4-feature meta-stack, which is then classified by one of six meta-learners.}}{3}{figure.1}\protected@file@percent }
+\newlabel{fig:pipeline}{{1}{3}{The stacking pipeline. Four base models produce per-transaction outputs that form a 4-feature meta-stack, which is then classified by one of six meta-learners}{figure.1}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {4.2}Out-of-fold stacking}{3}{subsection.4.2}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {4.3}Base model hyperparameters}{3}{subsection.4.3}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {4.4}Meta-learner candidates}{4}{subsection.4.4}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {4.5}Evaluation protocol}{4}{subsection.4.5}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {5}Experiments and Results}{4}{section.5}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {5.1}Datasets}{4}{subsection.5.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {5.2}Headline results}{4}{subsection.5.2}\protected@file@percent }
+\@writefile{lot}{\contentsline {table}{\numberline {1}{\ignorespaces CreditCard test set results (71 fraud cases). Bootstrap 95\% CIs in brackets.}}{4}{table.1}\protected@file@percent }
+\newlabel{tab:cc}{{1}{4}{CreditCard test set results (71 fraud cases). Bootstrap 95\% CIs in brackets}{table.1}{}}
+\@writefile{lot}{\contentsline {table}{\numberline {2}{\ignorespaces BankSim test set results (1,080 fraud cases). Bootstrap 95\% CIs in brackets.}}{5}{table.2}\protected@file@percent }
+\newlabel{tab:bs}{{2}{5}{BankSim test set results (1,080 fraud cases). Bootstrap 95\% CIs in brackets}{table.2}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {5.3}Statistical significance}{5}{subsection.5.3}\protected@file@percent }
+\@writefile{lof}{\contentsline {figure}{\numberline {2}{\ignorespaces Bootstrap 95\% confidence intervals on F1 score for all models. CreditCard CIs are much wider than BankSim's because the CreditCard test set contains only 71 fraud cases. On both datasets, the top group of models overlap each other heavily, meaning the apparent ranking within that group is not statistically reliable.}}{5}{figure.2}\protected@file@percent }
+\newlabel{fig:forest}{{2}{5}{Bootstrap 95\% confidence intervals on F1 score for all models. CreditCard CIs are much wider than BankSim's because the CreditCard test set contains only 71 fraud cases. On both datasets, the top group of models overlap each other heavily, meaning the apparent ranking within that group is not statistically reliable}{figure.2}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {5.4}Cross-dataset comparison}{5}{subsection.5.4}\protected@file@percent }
+\citation{grinsztajn2022}
+\@writefile{lof}{\contentsline {figure}{\numberline {3}{\ignorespaces F1 and AUC-PR for all 10 models on both datasets. The vertical dashed line separates base models (left) from meta-learners (right).}}{6}{figure.3}\protected@file@percent }
+\newlabel{fig:cross}{{3}{6}{F1 and AUC-PR for all 10 models on both datasets. The vertical dashed line separates base models (left) from meta-learners (right)}{figure.3}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {5.5}Deep learning vs. gradient boosting}{6}{subsection.5.5}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {5.6}Unsupervised behaviour is dataset dependent}{6}{subsection.5.6}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {5.7}Meta-GBM collapse on CreditCard}{6}{subsection.5.7}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {6}Limitations}{6}{section.6}\protected@file@percent }
+\bibstyle{plain}
+\bibdata{references}
+\bibcite{alarfaj2022}{1}
+\bibcite{grinsztajn2022}{2}
+\bibcite{pumsirirat2018}{3}
+\@writefile{toc}{\contentsline {section}{\numberline {7}Conclusion}{7}{section.7}\protected@file@percent }
+\bibcite{wolpert1992stacking}{4}
+\gdef \@abspage@last{8}
