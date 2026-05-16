@@ -1,14 +1,14 @@
 dataset,model,threshold,f1,precision,recall,auc_pr,model_clean
-CreditCard,FFN,0.99,0.6829,0.6022,0.7887,0.6635,FFN
-CreditCard,XGBoost,0.2415,0.8244,0.9,0.7606,0.8106,XGBoost
-CreditCard,Autoencoder,0.99,0.1942,0.1105,0.8028,0.3705,Autoencoder
+CreditCard,FFN,0.99,0.7857,0.7971,0.7746,0.7006,FFN
+CreditCard,XGBoost,0.9605,0.8346,0.9464,0.7465,0.8162,XGBoost
+CreditCard,Autoencoder,0.99,0.1979,0.1129,0.8028,0.4284,Autoencoder
 CreditCard,Isolation Forest,0.99,0.1988,0.1264,0.4648,0.1301,Isolation Forest
-CreditCard,Meta-LR,0.99,0.8308,0.9153,0.7606,0.7887,Meta-LR
-CreditCard,Meta-RF,0.3695,0.8308,0.9153,0.7606,0.7341,Meta-RF
-CreditCard,Meta-GBM,0.0592,0.1978,0.45,0.1268,0.0976,Meta-GBM
-CreditCard,Meta-SVM,0.0395,0.3017,0.1882,0.7606,0.0913,Meta-SVM
-CreditCard,Meta-MLP,0.2661,0.8308,0.9153,0.7606,0.788,Meta-MLP
-CreditCard,Meta-AdaBoost,0.4828,0.8346,0.9464,0.7465,0.737,Meta-AdaBoost
+CreditCard,Meta-LR,0.9851,0.8029,0.8333,0.7746,0.8198,Meta-LR
+CreditCard,Meta-RF,0.2119,0.7941,0.8308,0.7606,0.7892,Meta-RF
+CreditCard,Meta-GBM,0.0149,0.0638,0.1304,0.0423,0.0186,Meta-GBM
+CreditCard,Meta-SVM,0.074,0.3257,0.2043,0.8028,0.1218,Meta-SVM
+CreditCard,Meta-MLP,0.5813,0.8308,0.9153,0.7606,0.8028,Meta-MLP
+CreditCard,Meta-AdaBoost,0.4483,0.8438,0.9474,0.7606,0.7734,Meta-AdaBoost
 BankSim,BS-FFN,0.9752,0.7195,0.7329,0.7065,0.7659,FFN
 BankSim,BS-XGBoost,0.9752,0.7183,0.841,0.6269,0.7721,XGBoost
 BankSim,BS-Autoencoder,0.5172,0.6693,0.848,0.5528,0.6779,Autoencoder
