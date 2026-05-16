@@ -1,0 +1,11 @@
+dataset,model,threshold,f1,precision,recall,auc_pr
+CreditCard,FFN,0.99,0.6829,0.6022,0.7887,0.6635
+CreditCard,XGBoost,0.2415,0.8244,0.9,0.7606,0.8106
+CreditCard,Autoencoder,0.99,0.1942,0.1105,0.8028,0.3705
+CreditCard,Isolation Forest,0.99,0.1988,0.1264,0.4648,0.1301
+CreditCard,Meta-LR,0.99,0.8308,0.9153,0.7606,0.7887
+CreditCard,Meta-RF,0.3695,0.8308,0.9153,0.7606,0.7341
+CreditCard,Meta-GBM,0.0592,0.1978,0.45,0.1268,0.0976
+CreditCard,Meta-SVM,0.0395,0.3017,0.1882,0.7606,0.0913
+CreditCard,Meta-MLP,0.2661,0.8308,0.9153,0.7606,0.788
+CreditCard,Meta-AdaBoost,0.4828,0.8346,0.9464,0.7465,0.737
